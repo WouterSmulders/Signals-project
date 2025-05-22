@@ -1,0 +1,56 @@
+import numpy as np
+from scipy.io import wavfile
+from scipy.fftpack import fft, ifft
+
+def load_audio(filename):
+    sr, audio = wavfile.read(filename)
+    audio = audio.astype(np.float32)
+    if audio.ndim == 2:
+        # Convert stereo to mono (center channel)
+        audio = (audio[:, 0] + audio[:, 1]) / 2
+    return sr, audio
+
+def save_audio(filename, sr, data):
+    # Normalize and save
+    data = data / np.max(np.abs(data)) * 32767
+    wavfile.write(filename, sr, data.astype(np.int16))
+
+def simple_fft_vocal_isolation(audio, window_size=2048, hop=1024, threshold=0.6):
+    output_lead = np.zeros_like(audio)
+    output_rest = np.zeros_like(audio)
+
+    for start in range(0, len(audio) - window_size, hop):
+        segment = audio[start:start+window_size]
+
+        # FFT
+        spectrum = fft(segment)
+        magnitude = np.abs(spectrum)
+        phase = np.angle(spectrum)
+
+        # Simple energy-based mask
+        max_mag = np.max(magnitude)
+        mask = magnitude > threshold * max_mag
+
+        # Apply mask
+        lead_spec = spectrum * mask
+        rest_spec = spectrum * (~mask)
+
+        # Inverse FFT
+        lead_segment = np.real(ifft(lead_spec))
+        rest_segment = np.real(ifft(rest_spec))
+
+        # Overlap-add (no windowing to keep it simple)
+        output_lead[start:start+window_size] += lead_segment
+        output_rest[start:start+window_size] += rest_segment
+
+    return output_lead, output_rest
+
+# === Run this ===
+input_file = "input_song.wav"
+sr, audio = load_audio(input_file)
+lead, rest = simple_fft_vocal_isolation(audio)
+
+save_audio("lead_vocal.wav", sr, lead)
+save_audio("everything_else.wav", sr, rest)
+
+print("Done! Saved lead vocal and rest of audio.")
