@@ -36,14 +36,14 @@ def main():
     freqs = fftfreq(N, d=1/fs)
     spectrum = fft(iq_segment)
 
-    target_freq = 11440  # Hz
+    target_freq = 14880  # Hz
     bandwidth = 3000    # Hz
     mask = (freqs > target_freq - bandwidth/2) & (freqs < target_freq + bandwidth/2)
     filtered_spectrum = np.zeros_like(spectrum)
     filtered_spectrum[mask] = spectrum[mask]
     iq_filtered = ifft(filtered_spectrum)
 
-    audio = ssb_demodulate(iq_filtered, fs, sideband='usb', audio_freq_shift=3000)
+    audio = ssb_demodulate(iq_filtered, fs, sideband='usb', audio_freq_shift=target_freq)
     decimation_factor = fs // 8000
     audio_downsampled = audio[::decimation_factor]
 
